@@ -21,10 +21,10 @@ white = (255, 255, 255)
 
 #define game variables
 ground_scroll = 0
-scroll_speed = 4
+scroll_speed = 10
 flying = False
 game_over = False
-pipe_gap = 150
+pipe_gap = 1500
 pipe_frequency = 1500 # milliseconds
 last_pipe = pygame.time.get_ticks() - pipe_frequency
 score = 0
@@ -63,23 +63,50 @@ class Bird(pygame.sprite.Sprite):
         self.vel = 0
         self.clicked = False
 
+        self.lastClickSide = 0
+        self.leftWasHeld = False
+        self.rightWasHeld = False
+
     def update(self):
 
         if flying == True:
             #gravity
             self.vel += 0.5
-            if self.vel > 8:
-                self.vel = 8
+            #if self.vel != 0:
+            #    self.vel -= 0.5 * abs(self.vel) / self.vel
+            #if self.vel > 8:
+            #    self.vel = 8
             if self.rect.bottom < 768:
                 self.rect.y += self.vel
 
         if game_over == False:
             #jump
-            if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                self.clicked = True
-                self.vel = -10
-            if pygame.mouse.get_pressed()[0] == 0:
-                self.clicked = False
+            left_clicked = pygame.mouse.get_pressed()[0] == 1
+            right_clicked = pygame.mouse.get_pressed()[2] == 1
+            if left_clicked and not self.leftWasHeld:
+                self.leftWasHeld = True
+                self.lastClickSide = 1
+            if not left_clicked:
+                self.leftWasHeld = False
+                if self.lastClickSide == 1:
+                    if right_clicked:
+                        self.lastClickSide = 2
+                    else:
+                        self.lastClickSide = 0
+            if right_clicked and not self.rightWasHeld:
+                self.rightWasHeld = True
+                self.lastClickSide = 2
+            if not right_clicked:
+                self.rightWasHeld = False
+                if self.lastClickSide == 2:
+                    if left_clicked:
+                        self.lastClickSide = 1
+                    else:
+                        self.lastClickSide = 0
+            if self.lastClickSide == 1:
+                self.vel -= 1
+            if self.lastClickSide == 2:
+                self.vel += 1
 
             #handle the animation
             self.counter += 1
