@@ -21,11 +21,12 @@ white = (255, 255, 255)
 
 #define game variables
 ground_scroll = 0
-scroll_speed = 10
+scroll_speed = 20
+max_speed = 15
 flying = False
 game_over = False
-pipe_gap = 1500
-pipe_frequency = 1500 # milliseconds
+pipe_gap = 220
+pipe_frequency = 3000 # milliseconds
 last_pipe = pygame.time.get_ticks() - pipe_frequency
 score = 0
 pass_pipe = False
@@ -45,6 +46,7 @@ def reset_game():
     pipe_group.empty()
     flappy.rect.x = 100
     flappy.rect.y = int(screen_height / 2)
+    flappy.vel = 0
     score = 0
     return score
 
@@ -70,14 +72,13 @@ class Bird(pygame.sprite.Sprite):
     def update(self):
 
         if flying == True:
+            print(clock.get_time())
             #gravity
-            self.vel += 0.5
-            #if self.vel != 0:
-            #    self.vel -= 0.5 * abs(self.vel) / self.vel
-            #if self.vel > 8:
-            #    self.vel = 8
+            if abs(self.vel) > max_speed and not game_over:
+                self.vel = max_speed * abs(self.vel) / self.vel
             if self.rect.bottom < 768:
                 self.rect.y += self.vel
+
 
         if game_over == False:
             #jump
@@ -103,10 +104,14 @@ class Bird(pygame.sprite.Sprite):
                         self.lastClickSide = 1
                     else:
                         self.lastClickSide = 0
-            if self.lastClickSide == 1:
-                self.vel -= 1
-            if self.lastClickSide == 2:
-                self.vel += 1
+            match (self.lastClickSide):
+                case 0:
+                    if self.vel != 0:
+                        self.vel -= 0.5 * abs(self.vel) / self.vel
+                case 1:
+                    self.vel -= 1
+                case 2:
+                    self.vel += 1
 
             #handle the animation
             self.counter += 1
@@ -121,8 +126,8 @@ class Bird(pygame.sprite.Sprite):
 
             #rotate the bird
             self.image = pygame.transform.rotate(self.images[self.index], self.vel * -2)
-        else:
-            self.image = pygame.transform.rotate(self.images[self.index], -90)
+        #else:
+        #    self.image = pygame.transform.rotate(self.images[self.index], -90)
 
 
 
@@ -208,6 +213,7 @@ while run:
 
     #look for collision
     if pygame.sprite.groupcollide(bird_group, pipe_group, False, False) or flappy.rect.top < 0:
+        if not game_over: flappy.vel = -10
         game_over = True
     #check if bird has hit the ground
     if flappy.rect.bottom >= 768:
@@ -236,6 +242,8 @@ while run:
 
     #check for game over and reset
     if game_over == True:
+        if flying: flappy.vel += 0.5
+        flappy.image = pygame.transform.rotate(flappy.images[flappy.index], pow(abs(flappy.vel + 10), 1.5) * 1 + (flappy.vel + 10) * 0.5)
         if button.draw():
             game_over = False
             score = reset_game()
