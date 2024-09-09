@@ -28,14 +28,14 @@ flying = False
 game_over = False
 was_flying = False
 game_was_over = True
-pipe_gap = 220
+pipe_gap = 180
 pipe_frequency = 1500 # milliseconds
-start_pipe_delay = -pipe_frequency + ((screen_width - 100 + 78/2) / scroll_speed) * 2
-print(start_pipe_delay + pipe_frequency)
-last_pipe = 0
+start_pipe_delay = pipe_frequency - ((screen_width - 75) / scroll_speed) / fps * 1000
+next_pipe = 0
 score = 0
 pass_pipe = False
 start_time = 0
+mouse_was_pressed = False
 
 #load images
 bg = pygame.image.load(os.path.join('img', 'bg.png'))
@@ -99,6 +99,7 @@ class Bird(pygame.sprite.Sprite):
             right_clicked = pygame.mouse.get_pressed()[2] == 1
             if left_clicked and not self.leftWasHeld:
                 self.leftWasHeld = True
+                if self.lastClickSide == 0: self.vel -= 2
                 self.lastClickSide = 1
             if not left_clicked:
                 self.leftWasHeld = False
@@ -109,6 +110,7 @@ class Bird(pygame.sprite.Sprite):
                         self.lastClickSide = 0
             if right_clicked and not self.rightWasHeld:
                 self.rightWasHeld = True
+                if self.lastClickSide == 0: self.vel += 2
                 self.lastClickSide = 2
             if not right_clicked:
                 self.rightWasHeld = False
@@ -168,7 +170,7 @@ class Button():
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
-    def draw(self):
+    def draw(self, mouse_held):
 
         action = False
 
@@ -183,7 +185,7 @@ class Button():
         #draw button
         screen.blit(self.image, (self.rect.x, self.rect.y))
 
-        return action
+        return action and not mouse_held
 
 
 bird_group = pygame.sprite.Group()
@@ -221,6 +223,7 @@ while run:
             if bird_group.sprites()[0].rect.left > pipe_group.sprites()[0].rect.right:
                 score += 1
                 pass_pipe = False
+                print(time_now - next_pipe + pipe_frequency)
 
     draw_text(str(score), font, white, int(screen_width / 2), 20)
 
@@ -234,20 +237,15 @@ while run:
         flying = False
 
     if game_over == False and flying == True:
-        if not was_flying:
-            print("Starting")
-            pygame.mixer.music.load(playtrack[0])
-            pygame.mixer.music.play()
-
         # generate new pipes
         time_now = pygame.time.get_ticks()
-        if time_now - last_pipe > pipe_frequency:
+        if time_now > next_pipe:
             pipe_height = random.randint(-100, 100)
             btm_pipe = Pipe(screen_width, int(screen_height / 2) + pipe_height, -1)
             top_pipe = Pipe(screen_width, int(screen_height / 2) + pipe_height, 1)
             pipe_group.add(btm_pipe)
             pipe_group.add(top_pipe)
-            last_pipe = time_now
+            next_pipe = time_now + pipe_frequency
 
 
         #scroll the ground
@@ -265,12 +263,15 @@ while run:
     game_was_over = game_over
 
     #check for game over and reset
-    if game_over == True:
+    if game_over == True and game_was_over == True:
         if flying: flappy.vel += 0.5
         flappy.image = pygame.transform.rotate(flappy.images[flappy.index], pow(abs(flappy.vel + 10), 1.5) * 1 + (flappy.vel + 10) * 0.5)
-        if button.draw():
+        if button.draw(mouse_was_pressed):
             game_over = False
+            flying = False
             score = reset_game()
+
+    mouse_was_pressed = pygame.mouse.get_pressed()[0]
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -278,9 +279,11 @@ while run:
         if event.type == pygame.MOUSEBUTTONDOWN and flying == False and game_over == False:
             flying = True
             start_time = pygame.time.get_ticks()
-            last_pipe = start_time + start_pipe_delay
+            next_pipe = start_time + start_pipe_delay
             flappy.vel = 0
-            print(last_pipe - start_time)
+            print("Starting")
+            pygame.mixer.music.load(playtrack[0])
+            pygame.mixer.music.play()
 
     pygame.display.update()
 
