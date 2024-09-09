@@ -1,6 +1,7 @@
 import pygame
 from pygame.locals import *
 import random
+import os
 
 pygame.init()
 
@@ -25,16 +26,29 @@ scroll_speed = 20
 max_speed = 15
 flying = False
 game_over = False
+was_flying = False
+game_was_over = True
 pipe_gap = 220
-pipe_frequency = 3000 # milliseconds
-last_pipe = pygame.time.get_ticks() - pipe_frequency
+pipe_frequency = 1500 # milliseconds
+start_pipe_delay = -pipe_frequency + ((screen_width - 100 + 78/2) / scroll_speed) * 2
+print(start_pipe_delay + pipe_frequency)
+last_pipe = 0
 score = 0
 pass_pipe = False
+start_time = 0
 
 #load images
-bg = pygame.image.load('img/bg.png')
-ground_img = pygame.image.load('img/ground.png')
-button_img = pygame.image.load('img/restart.png')
+bg = pygame.image.load(os.path.join('img', 'bg.png'))
+ground_img = pygame.image.load(os.path.join('img', 'ground.png'))
+button_img = pygame.image.load(os.path.join('img', 'restart.png'))
+
+#load music
+playtrack = [
+    os.path.join('music', 'Forever Bound - Stereo Madness.opus')
+]
+lobbytrack = [
+    ''
+]
 
 
 def draw_text(text, font, text_col, x, y):
@@ -72,7 +86,6 @@ class Bird(pygame.sprite.Sprite):
     def update(self):
 
         if flying == True:
-            print(clock.get_time())
             #gravity
             if abs(self.vel) > max_speed and not game_over:
                 self.vel = max_speed * abs(self.vel) / self.vel
@@ -221,6 +234,10 @@ while run:
         flying = False
 
     if game_over == False and flying == True:
+        if not was_flying:
+            print("Starting")
+            pygame.mixer.music.load(playtrack[0])
+            pygame.mixer.music.play()
 
         # generate new pipes
         time_now = pygame.time.get_ticks()
@@ -240,6 +257,13 @@ while run:
 
         pipe_group.update()
 
+    if game_over and not game_was_over:
+        print("Stopping")
+        pygame.mixer.music.unload()
+
+    was_flying = flying
+    game_was_over = game_over
+
     #check for game over and reset
     if game_over == True:
         if flying: flappy.vel += 0.5
@@ -253,6 +277,10 @@ while run:
             run = False
         if event.type == pygame.MOUSEBUTTONDOWN and flying == False and game_over == False:
             flying = True
+            start_time = pygame.time.get_ticks()
+            last_pipe = start_time + start_pipe_delay
+            flappy.vel = 0
+            print(last_pipe - start_time)
 
     pygame.display.update()
 
