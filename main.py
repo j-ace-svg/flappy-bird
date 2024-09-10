@@ -33,9 +33,10 @@ pipe_frequency = 1500 # milliseconds
 start_pipe_delay = pipe_frequency - ((screen_width - 75) / scroll_speed) / fps * 1000
 next_pipe = 0
 score = 0
-pass_pipe = False
+collide = False
 start_time = 0
 mouse_was_pressed = False
+playtrack_index = 0
 
 #load images
 bg = pygame.image.load(os.path.join('img', 'bg.png'))
@@ -57,7 +58,7 @@ def draw_text(text, font, text_col, x, y):
 
 
 def reset_game():
-    pipe_group.empty()
+    target_group.empty()
     flappy.rect.x = 100
     flappy.rect.y = int(screen_height / 2)
     flappy.vel = 0
@@ -146,21 +147,27 @@ class Bird(pygame.sprite.Sprite):
 
 
 
-class Pipe(pygame.sprite.Sprite):
-    def __init__(self, x, y, position):
+class Target(pygame.sprite.Sprite):
+    def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load('img/pipe.png')
+        self.image = pygame.image.load('img/target.png')
         self.rect = self.image.get_rect()
+        self.rect.center = [x, y]
+        self.safe = False
         #position 1 is from the top, -1 is from the bottom
-        if position == 1:
-            self.image = pygame.transform.flip(self.image, False, True)
-            self.rect.bottomleft = [x, y - int(pipe_gap / 2)]
-        if position == -1:
-            self.rect.topleft = [x, y + int(pipe_gap / 2)]
+        #if position == 1:
+        #    self.image = pygame.transform.flip(self.image, False, True)
+        #    self.rect.bottomleft = [x, y - int(pipe_gap / 2)]
+        #if position == -1:
+        #    self.rect.topleft = [x, y + int(pipe_gap / 2)]
 
     def update(self):
+        global flappy, game_over
         self.rect.x -= scroll_speed
         if self.rect.right < 0:
+            if not self.safe:
+                if not game_over: flappy.vel = -10
+                game_over = True
             self.kill()
 
 
@@ -189,7 +196,7 @@ class Button():
 
 
 bird_group = pygame.sprite.Group()
-pipe_group = pygame.sprite.Group()
+target_group = pygame.sprite.Group()
 
 flappy = Bird(100, int(screen_height / 2))
 
@@ -208,29 +215,27 @@ while run:
 
     bird_group.draw(screen)
     bird_group.update()
-    pipe_group.draw(screen)
+    target_group.draw(screen)
 
     #draw the ground
     screen.blit(ground_img, (ground_scroll, 768))
 
-    #check the score
-    if len(pipe_group) > 0:
-        if bird_group.sprites()[0].rect.left > pipe_group.sprites()[0].rect.left\
-            and bird_group.sprites()[0].rect.right < pipe_group.sprites()[0].rect.right\
-            and pass_pipe == False:
-            pass_pipe = True
-        if pass_pipe == True:
-            if bird_group.sprites()[0].rect.left > pipe_group.sprites()[0].rect.right:
-                score += 1
-                pass_pipe = False
-                print(time_now - next_pipe + pipe_frequency)
+    #check missed targets
+    if len(target_group) > 0:
+        if bird_group.sprites()[0].rect.left > target_group.sprites()[0].rect.right:
+            if collide:
+                collide = False
+                target_group.sprites()[0].safe = True
+            print(len(bird_group.sprites()))
 
     draw_text(str(score), font, white, int(screen_width / 2), 20)
 
     #look for collision
-    if pygame.sprite.groupcollide(bird_group, pipe_group, False, False) or flappy.rect.top < 0:
-        if not game_over: flappy.vel = -10
-        game_over = True
+    if pygame.sprite.groupcollide(bird_group, target_group, False, False) or flappy.rect.top < 0:
+        if collide == False:
+            score += 1
+            print(time_now - next_pipe + pipe_frequency)
+            collide = True
     #check if bird has hit the ground
     if flappy.rect.bottom >= 768:
         game_over = True
@@ -240,11 +245,14 @@ while run:
         # generate new pipes
         time_now = pygame.time.get_ticks()
         if time_now > next_pipe:
+            if (next_pipe - start_time + 20) / pipe_frequency >= 17:
+                pipe_frequency = 750
             pipe_height = random.randint(-100, 100)
-            btm_pipe = Pipe(screen_width, int(screen_height / 2) + pipe_height, -1)
-            top_pipe = Pipe(screen_width, int(screen_height / 2) + pipe_height, 1)
-            pipe_group.add(btm_pipe)
-            pipe_group.add(top_pipe)
+            #btm_pipe = Target(screen_width, int(screen_height / 2) + pipe_height, -1)
+            #top_pipe = Target(screen_width, int(screen_height / 2) + pipe_height, 1)
+            target = Target(screen_width, int(screen_height / 2) + pipe_height)
+            print(target.safe)
+            target_group.add(target)
             next_pipe = time_now + pipe_frequency
 
 
@@ -253,7 +261,7 @@ while run:
         if abs(ground_scroll) > 35:
             ground_scroll = 0
 
-        pipe_group.update()
+        target_group.update()
 
     if game_over and not game_was_over:
         print("Stopping")
@@ -281,6 +289,7 @@ while run:
             start_time = pygame.time.get_ticks()
             next_pipe = start_time + start_pipe_delay
             flappy.vel = 0
+            pipe_frequency = 1500
             print("Starting")
             pygame.mixer.music.load(playtrack[0])
             pygame.mixer.music.play()
