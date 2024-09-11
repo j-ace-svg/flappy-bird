@@ -28,11 +28,13 @@ flying = False
 game_over = False
 was_flying = False
 game_was_over = True
+flappy_left_x = 150 # Original: 75
 pipe_gap = 180
 pipe_frequency = 1500 # milliseconds
-start_pipe_delay = pipe_frequency - ((screen_width - 75) / scroll_speed) / fps * 1000
+start_pipe_delay = pipe_frequency - ((screen_width - flappy_left_x) / scroll_speed) / fps * 1000
 next_pipe = 0
 score = 0
+spawn_count = 0
 collide = False
 start_time = 0
 mouse_was_pressed = False
@@ -58,11 +60,13 @@ def draw_text(text, font, text_col, x, y):
 
 
 def reset_game():
+    global target_group, flappy, score, spawn_count
     target_group.empty()
     flappy.rect.x = 100
     flappy.rect.y = int(screen_height / 2)
     flappy.vel = 0
     score = 0
+    spawn_count = 0
     return score
 
 class Bird(pygame.sprite.Sprite):
@@ -76,7 +80,7 @@ class Bird(pygame.sprite.Sprite):
             self.images.append(img)
         self.image = self.images[self.index]
         self.rect = self.image.get_rect()
-        self.rect.center = [x, y]
+        self.rect.midleft = [x, y]
         self.vel = 0
         self.clicked = False
 
@@ -164,6 +168,8 @@ class Target(pygame.sprite.Sprite):
     def update(self):
         global flappy, game_over
         self.rect.x -= scroll_speed
+        if self.safe:
+            self.image.fill((150, 150, 150, 127))
         if self.rect.right < 0:
             if not self.safe:
                 if not game_over: flappy.vel = -10
@@ -198,12 +204,14 @@ class Button():
 bird_group = pygame.sprite.Group()
 target_group = pygame.sprite.Group()
 
-flappy = Bird(100, int(screen_height / 2))
+flappy = Bird(flappy_left_x, int(screen_height / 2))
 
 bird_group.add(flappy)
 
 #create a restart button instance
 button = Button(screen_width // 2 - 50, screen_height // 2 - 100, button_img)
+
+pygame.mixer.music.load(playtrack[0])
 
 run = True
 while run:
@@ -226,7 +234,6 @@ while run:
             if collide:
                 collide = False
                 target_group.sprites()[0].safe = True
-            print(len(bird_group.sprites()))
 
     draw_text(str(score), font, white, int(screen_width / 2), 20)
 
@@ -234,7 +241,6 @@ while run:
     if pygame.sprite.groupcollide(bird_group, target_group, False, False) or flappy.rect.top < 0:
         if collide == False:
             score += 1
-            print(time_now - next_pipe + pipe_frequency)
             collide = True
     #check if bird has hit the ground
     if flappy.rect.bottom >= 768:
@@ -245,15 +251,18 @@ while run:
         # generate new pipes
         time_now = pygame.time.get_ticks()
         if time_now > next_pipe:
-            if (next_pipe - start_time + 20) / pipe_frequency >= 17:
+            if spawn_count == 16:
                 pipe_frequency = 750
+                spawn_count *= 2
+            spawn_count += 1
             pipe_height = random.randint(-100, 100)
             #btm_pipe = Target(screen_width, int(screen_height / 2) + pipe_height, -1)
             #top_pipe = Target(screen_width, int(screen_height / 2) + pipe_height, 1)
             target = Target(screen_width, int(screen_height / 2) + pipe_height)
             print(target.safe)
             target_group.add(target)
-            next_pipe = time_now + pipe_frequency
+            next_pipe = start_time + spawn_count * pipe_frequency + start_pipe_delay
+            print(spawn_count, time_now - start_time)
 
 
         #scroll the ground
@@ -264,8 +273,7 @@ while run:
         target_group.update()
 
     if game_over and not game_was_over:
-        print("Stopping")
-        pygame.mixer.music.unload()
+        pygame.mixer.music.stop()
 
     was_flying = flying
     game_was_over = game_over
@@ -290,8 +298,6 @@ while run:
             next_pipe = start_time + start_pipe_delay
             flappy.vel = 0
             pipe_frequency = 1500
-            print("Starting")
-            pygame.mixer.music.load(playtrack[0])
             pygame.mixer.music.play()
 
     pygame.display.update()
