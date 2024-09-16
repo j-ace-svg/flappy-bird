@@ -57,10 +57,12 @@ playtrack = [
     },
     {
         "song": os.path.join('music', 'Oli Parker - Destination Stank Station.opus'),
-        "base_rate": 60 / 114 * 4 * 1000, # 60 seconds / 114 bpm * 4 beats/measure * 1000 ms/s
+        "base_rate": 60 / 115 * 4 * 1000, # 60 seconds / 114 bpm * 4 beats/measure * 1000 ms/s
         "timing": [
                 #[0, 1 / 1.75],
                 [1, 1],
+                [11, 3],
+                [20, 1]
             ],
     }
 ]
@@ -326,8 +328,6 @@ while run:
             playtrack_timing_queue = playtrack[playtrack_index]["timing"].copy()
             if playtrack_timing_queue[0][0] == 0:
                 pipe_frequency = pipe_frequency / playtrack_timing_queue[0][1]
-                playtrack_timing_section_start = next_pipe
-                spawn_count = 0
                 playtrack_timing_queue.pop(0)
             pygame.mixer.music.play()
 
