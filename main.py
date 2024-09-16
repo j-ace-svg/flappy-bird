@@ -3,6 +3,7 @@ from pygame.locals import *
 import random
 import os
 
+pygame.mixer.pre_init(44100, -16, 2, 2048) # setup mixer to avoid sound lag
 pygame.init()
 
 clock = pygame.time.Clock()
@@ -47,7 +48,21 @@ button_img = pygame.image.load(os.path.join('img', 'restart.png'))
 
 #load music
 playtrack = [
-    os.path.join('music', 'Forever Bound - Stereo Madness.opus')
+    {
+        "song": os.path.join('music', 'Forever Bound - Stereo Madness.opus'),
+        "base_rate": 1500,
+        "timing": [
+                [15, 2],
+            ],
+    },
+    {
+        "song": os.path.join('music', 'Oli Parker - Destination Stank Station.opus'),
+        "base_rate": 60 / 114 * 4 * 1000, # 60 seconds / 114 bpm * 4 beats/measure * 1000 ms/s
+        "timing": [
+                #[0, 1 / 1.75],
+                [1, 1],
+            ],
+    }
 ]
 lobbytrack = [
     ''
@@ -211,7 +226,9 @@ bird_group.add(flappy)
 #create a restart button instance
 button = Button(screen_width // 2 - 50, screen_height // 2 - 100, button_img)
 
-pygame.mixer.music.load(playtrack[0])
+pygame.mixer.music.load(playtrack[0]["song"])
+playtrack_timing_queue = playtrack[0]["timing"]
+playtrack_timing_section_start = 0
 
 run = True
 while run:
@@ -251,9 +268,12 @@ while run:
         # generate new pipes
         time_now = pygame.time.get_ticks()
         if time_now > next_pipe:
-            if spawn_count == 16:
-                pipe_frequency = 750
-                spawn_count *= 2
+            print(playtrack_timing_queue)
+            if len(playtrack_timing_queue) > 0 and spawn_count == playtrack_timing_queue[0][0]:
+                pipe_frequency = playtrack[playtrack_index]["base_rate"] / playtrack_timing_queue[0][1]
+                playtrack_timing_section_start = next_pipe
+                spawn_count = 0
+                playtrack_timing_queue.pop(0)
             spawn_count += 1
             pipe_height = random.randint(-100, 100)
             #btm_pipe = Target(screen_width, int(screen_height / 2) + pipe_height, -1)
@@ -261,7 +281,7 @@ while run:
             target = Target(screen_width, int(screen_height / 2) + pipe_height)
             print(target.safe)
             target_group.add(target)
-            next_pipe = start_time + spawn_count * pipe_frequency + start_pipe_delay
+            next_pipe = playtrack_timing_section_start + spawn_count * pipe_frequency + start_pipe_delay
             print(spawn_count, time_now - start_time)
 
 
@@ -274,6 +294,9 @@ while run:
 
     if game_over and not game_was_over:
         pygame.mixer.music.stop()
+        pygame.mixer.music.unload()
+        playtrack_index = random.randint(0, len(playtrack) - 1)
+        pygame.mixer.music.load(playtrack[playtrack_index]["song"])
 
     was_flying = flying
     game_was_over = game_over
@@ -295,9 +318,17 @@ while run:
         if event.type == pygame.MOUSEBUTTONDOWN and flying == False and game_over == False:
             flying = True
             start_time = pygame.time.get_ticks()
+            playtrack_timing_section_start = start_time
             next_pipe = start_time + start_pipe_delay
             flappy.vel = 0
-            pipe_frequency = 1500
+            pipe_frequency = playtrack[playtrack_index]["base_rate"]
+            print(pipe_frequency)
+            playtrack_timing_queue = playtrack[playtrack_index]["timing"].copy()
+            if playtrack_timing_queue[0][0] == 0:
+                pipe_frequency = pipe_frequency / playtrack_timing_queue[0][1]
+                playtrack_timing_section_start = next_pipe
+                spawn_count = 0
+                playtrack_timing_queue.pop(0)
             pygame.mixer.music.play()
 
     pygame.display.update()
