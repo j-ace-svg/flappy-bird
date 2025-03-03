@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import pygame
 from pygame.locals import *
 import random
@@ -39,6 +41,7 @@ spawn_count = 0
 collide = False
 start_time = 0
 mouse_was_pressed = False
+keyboard_instead_of_mouse = True
 playtrack_index = 0
 
 #load images
@@ -105,6 +108,15 @@ class Bird(pygame.sprite.Sprite):
         self.leftWasHeld = False
         self.rightWasHeld = False
 
+    def get_input(self, index):
+        if not keyboard_instead_of_mouse:
+            return pygame.mouse.get_pressed()[index]
+        else:
+            if index == 0: # Left click = Up arrow
+                return pygame.key.get_pressed()[pygame.K_UP]
+            elif index == 2: # Right click = down arrow
+                return pygame.key.get_pressed()[pygame.K_DOWN]
+
     def update(self):
 
         if flying == True:
@@ -117,8 +129,8 @@ class Bird(pygame.sprite.Sprite):
 
         if game_over == False:
             #jump
-            left_clicked = pygame.mouse.get_pressed()[0] == 1
-            right_clicked = pygame.mouse.get_pressed()[2] == 1
+            left_clicked = self.get_input(0) == 1
+            right_clicked = get_input(2) == 1
             if left_clicked and not self.leftWasHeld:
                 self.leftWasHeld = True
                 if self.lastClickSide == 0: self.vel -= 2
@@ -209,7 +221,7 @@ class Button():
 
         #check if mouse is over the button
         if self.rect.collidepoint(pos):
-            if pygame.mouse.get_pressed()[0] == 1:
+            if self.get_input(0) == 1:
                 action = True
 
         #draw button
@@ -312,7 +324,7 @@ while run:
             flying = False
             score = reset_game()
 
-    mouse_was_pressed = pygame.mouse.get_pressed()[0]
+    mouse_was_pressed = self.get_input(0)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
